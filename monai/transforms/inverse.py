@@ -124,10 +124,18 @@ class InvertibleTransform(TraceableTransform):
         xform_id = transform.get(TraceKeys.ID, "")
         if xform_id == id(self):
             return
+        else:
+            msg = 'Instance id mismatch: self: ' + str(id(self)) + f'; transform: {xform_id}'
         # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
-        if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
-            return
-        raise RuntimeError(f"Error inverting the most recently applied invertible transform {xform_name} {xform_id}.")
+        if torch.multiprocessing.get_start_method() in ("spawn", None):
+            if xform_name == self.__class__.__name__:
+                return
+            else:
+                msg = msg + f"\n\tAnd name mismatch: self: {self.__class__.__name__}; transform: {xform_name}"
+        else:
+            msg = msg + '\n\tAnd multiprocessing uses spawn: ' + str(torch.multiprocessing.get_start_method() in ("spawn", None))
+            
+        raise RuntimeError(f"Error inverting the most recently applied invertible transform {xform_name} {xform_id}.\nDetails: {msg}")
 
     def get_most_recent_transform(self, data: Mapping, key: Hashable = None):
         """Get most recent transform."""
